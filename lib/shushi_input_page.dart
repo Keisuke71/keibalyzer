@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'database_helper.dart';
+import 'horse_selection_widget.dart';
 
 class ShushiInputPage extends StatefulWidget {
   const ShushiInputPage({super.key});
@@ -10,6 +11,7 @@ class ShushiInputPage extends StatefulWidget {
 }
 
 class _ShushiInputPageState extends State<ShushiInputPage> {
+  Map<int, Set<int>> _selectedHorseGroups = {0: {}, 1: {}, 2: {}};
   // 各入力値を保存するための変数
   DateTime? _selectedDate;
   String? _selectedKeibajo;
@@ -52,6 +54,28 @@ class _ShushiInputPageState extends State<ShushiInputPage> {
   final TextEditingController _bameiController = TextEditingController();
   final TextEditingController _kakekinController = TextEditingController();
   final TextEditingController _haraimodoshiController = TextEditingController();
+
+  void _handleHorseSelectionChanged(int groupIndex, int horseNumber) {
+    setState(() {
+      // 単勝・複勝（単一選択）の場合の処理
+      if (_selectedBakenType == '単勝' || _selectedBakenType == '複勝') {
+        _selectedHorseGroups[0]!.clear(); // いったん全てクリア
+        _selectedHorseGroups[0]!.add(horseNumber); // 新しいものだけ追加
+        return;
+      }
+
+      // 通常の複数選択の場合の処理
+      final isSelected = _selectedHorseGroups[groupIndex]!.contains(
+        horseNumber,
+      );
+
+      if (isSelected) {
+        _selectedHorseGroups[groupIndex]!.remove(horseNumber); // 選択済みなら削除
+      } else {
+        _selectedHorseGroups[groupIndex]!.add(horseNumber); // 未選択なら追加
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -161,16 +185,95 @@ class _ShushiInputPageState extends State<ShushiInputPage> {
               onChanged: (value) {
                 setState(() {
                   _selectedBakenType = value;
+                  // 選択肢をリセット
+                  _selectedBakenOption = null;
+                  _isMulti = false;
+                  _tensuController.clear();
                 });
               },
             ),
             const SizedBox(height: 24),
 
-            // --- 馬番・馬名・金額入力 ---
-            TextFormField(
-              controller: _babanController,
-              decoration: const InputDecoration(labelText: '馬番 (例: 5, 1-7)'),
+            // 馬券の種類
+            if (_showBakenOptions) const SizedBox(height: 24),
+            const Divider(),
+            const SizedBox(height: 16),
+
+            // --- ここから馬選択ウィジェットの呼び出し ---
+            // 単勝・複勝の場合
+            if (_selectedBakenType == '単勝' || _selectedBakenType == '複勝')
+              HorseSelectionWidget(
+                groupLabels: const ['馬番'],
+                selectedHorses: _selectedHorseGroups,
+                onSelectionChanged: _handleHorseSelectionChanged,
+                isSingleSelection: true,
+              ),
+
+            // 馬連・馬単・枠連・ワイドの場合
+            if (['馬連', '馬単', '枠連', 'ワイド'].contains(_selectedBakenType))
+              HorseSelectionWidget(
+                groupLabels: const ['1頭目/軸', '2頭目/相手'],
+                selectedHorses: _selectedHorseGroups,
+                onSelectionChanged: _handleHorseSelectionChanged,
+              ),
+
+            // 三連複・三連単の場合
+            if (['三連複', '三連単'].contains(_selectedBakenType))
+              HorseSelectionWidget(
+                groupLabels: const ['1頭目', '2頭目', '3頭目'],
+                selectedHorses: _selectedHorseGroups,
+                onSelectionChanged: _handleHorseSelectionChanged,
+              ),
+            Column(
+              children: [
+                const SizedBox(height: 16),
+                // --- 購入方法選択 (ドロップダウン) ---
+                DropdownButtonFormField<String>(
+                  decoration: const InputDecoration(
+                    labelText: '購入方法',
+                    icon: Icon(Icons.format_list_bulleted),
+                  ),
+                  value: _selectedBakenOption,
+                  items: ['通常', 'ボックス', 'ながし', 'フォーメーション']
+                      .map(
+                        (label) =>
+                            DropdownMenuItem(value: label, child: Text(label)),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedBakenOption = value;
+                    });
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // --- マルチ選択 (チェックボックス) ---
+                CheckboxListTile(
+                  title: const Text('マルチ'),
+                  value: _isMulti,
+                  onChanged: (newValue) {
+                    setState(() {
+                      _isMulti = newValue!;
+                    });
+                  },
+                  secondary: const Icon(Icons.multiple_stop),
+                ),
+                const SizedBox(height: 16),
+
+                // --- 点数入力 ---
+                TextFormField(
+                  controller: _tensuController,
+                  decoration: const InputDecoration(
+                    labelText: '購入点数',
+                    icon: Icon(Icons.calculate),
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+              ],
             ),
+
+            // --- 馬番・馬名・金額入力 ---
             const SizedBox(height: 16),
             TextFormField(
               controller: _bameiController,
@@ -242,6 +345,9 @@ class _ShushiInputPageState extends State<ShushiInputPage> {
                     baban: baban,
                     kakekin: kakekin,
                     haraimodoshi: haraimodoshi,
+                    bakenOption: _selectedBakenOption ?? '通常',
+                    tensu: int.tryParse(_tensuController.text) ?? 1,
+                    isMulti: _isMulti,
                   );
                   await DatabaseHelper.instance.create(record);
 
@@ -254,5 +360,15 @@ class _ShushiInputPageState extends State<ShushiInputPage> {
         ),
       ),
     );
+  }
+
+  String? _selectedBakenOption; // 購入方法（通常、ながし等）
+  final TextEditingController _tensuController = TextEditingController(); // 点数
+  bool _isMulti = false; // マルチオプション
+
+  // 馬券の種類によって表示を切り替えるためのヘルパー
+  bool get _showBakenOptions {
+    if (_selectedBakenType == null) return false;
+    return _selectedBakenType != '単勝' && _selectedBakenType != '複勝';
   }
 }

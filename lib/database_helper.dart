@@ -10,6 +10,9 @@ class ShushiRecord {
   final String baban;
   final int kakekin;
   final int haraimodoshi;
+  final String bakenOption;
+  final int tensu;
+  final bool isMulti;
 
   ShushiRecord({
     this.id,
@@ -20,6 +23,9 @@ class ShushiRecord {
     required this.baban,
     required this.kakekin,
     required this.haraimodoshi,
+    required this.bakenOption,
+    required this.tensu,
+    required this.isMulti,
   });
 
   Map<String, dynamic> toMap() {
@@ -32,6 +38,9 @@ class ShushiRecord {
       'baban': baban,
       'kakekin': kakekin,
       'haraimodoshi': haraimodoshi,
+      'bakenOption': bakenOption,
+      'tensu': tensu,
+      'isMulti': isMulti ? 1 : 0, // boolは0か1で保存
     };
   }
 }
@@ -70,6 +79,9 @@ CREATE TABLE shushi_records (
   baban $textType,
   kakekin $intType,
   haraimodoshi $intType
+  bakenOption $textType,
+  tensu $intType,
+  isMulti $intType
   )
 ''');
   }
@@ -98,6 +110,9 @@ CREATE TABLE shushi_records (
         baban: maps[i]['baban'] as String,
         kakekin: maps[i]['kakekin'] as int,
         haraimodoshi: maps[i]['haraimodoshi'] as int,
+        bakenOption: maps[i]['bakenOption'] as String? ?? '通常',
+        tensu: maps[i]['tensu'] as int? ?? 1,
+        isMulti: (maps[i]['isMulti'] as int? ?? 0) == 1,
       );
     });
   }
@@ -125,8 +140,17 @@ CREATE TABLE shushi_records (
         baban: maps[i]['baban'] as String,
         kakekin: maps[i]['kakekin'] as int,
         haraimodoshi: maps[i]['haraimodoshi'] as int,
+        bakenOption: maps[i]['bakenOption'] as String,
+        tensu: maps[i]['tensu'] as int,
+        isMulti: (maps[i]['isMulti'] as int) == 1,
       );
     });
+  }
+
+  // データを削除する
+  Future<int> delete(int id) async {
+    final db = await instance.database;
+    return await db.delete('shushi_records', where: 'id = ?', whereArgs: [id]);
   }
 
   Future close() async {
