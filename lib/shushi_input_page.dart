@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'database_helper.dart';
 
 class ShushiInputPage extends StatefulWidget {
   const ShushiInputPage({super.key});
@@ -207,36 +209,44 @@ class _ShushiInputPageState extends State<ShushiInputPage> {
                   ),
                   textStyle: const TextStyle(fontSize: 16),
                 ),
-                onPressed: () {
-                  // TODO: ここに保存処理と収支計算処理を書く
+                onPressed: () async {
+                  // 入力値を取得
+                  final date = _selectedDate != null
+                      ? DateFormat('yyyy-MM-dd').format(_selectedDate!)
+                      : '';
+                  final keibajo = _selectedKeibajo ?? '';
+                  final raceNumber = _selectedRaceNumber ?? '';
+                  final bakenType = _selectedBakenType ?? '';
+                  final baban = _babanController.text;
                   final kakekin = int.tryParse(_kakekinController.text) ?? 0;
                   final haraimodoshi =
                       int.tryParse(_haraimodoshiController.text) ?? 0;
-                  final shushi = haraimodoshi - kakekin;
 
-                  // 計算結果をダイアログで表示
-                  showDialog(
-                    context: context,
-                    builder: (context) {
-                      return AlertDialog(
-                        title: const Text('収支計算結果'),
-                        content: Text(
-                          'このレースの収支は ¥$shushi です。',
-                          style: TextStyle(
-                            color: shushi >= 0 ? Colors.green : Colors.red,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(),
-                            child: const Text('OK'),
-                          ),
-                        ],
-                      );
-                    },
+                  // 必須項目が入力されているかチェック
+                  if (date.isEmpty ||
+                      keibajo.isEmpty ||
+                      raceNumber.isEmpty ||
+                      bakenType.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('必須項目をすべて入力してください')),
+                    );
+                    return;
+                  }
+
+                  // データベースに保存
+                  final record = ShushiRecord(
+                    date: date,
+                    keibajo: keibajo,
+                    raceNumber: raceNumber,
+                    bakenType: bakenType,
+                    baban: baban,
+                    kakekin: kakekin,
+                    haraimodoshi: haraimodoshi,
                   );
+                  await DatabaseHelper.instance.create(record);
+
+                  // 保存が完了したら、前の画面（ホーム画面）に戻る
+                  Navigator.of(context).pop();
                 },
               ),
             ),
