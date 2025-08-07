@@ -14,6 +14,37 @@ class _ShushiInputPageState extends State<ShushiInputPage> {
   String? _selectedRaceNumber;
   String? _selectedBakenType;
 
+  // 競馬場リスト
+  final List<String> keibajoList = [
+    // --- よく使う競馬場 ---
+    '園田',
+    '阪神',
+    '京都',
+    '東京',
+    '中山',
+    '--- 中央競馬 ---',
+    '札幌',
+    '函館',
+    '福島',
+    '新潟',
+    '中京',
+    '小倉',
+    '--- 地方競馬 ---',
+    '帯広',
+    '門別',
+    '盛岡',
+    '水沢',
+    '浦和',
+    '船橋',
+    '大井',
+    '川崎',
+    '金沢',
+    '笠松',
+    '名古屋',
+    '姫路',
+    '高知',
+    '佐賀',
+  ];
   // テキスト入力欄を管理するためのコントローラー
   final TextEditingController _babanController = TextEditingController();
   final TextEditingController _bameiController = TextEditingController();
@@ -63,12 +94,27 @@ class _ShushiInputPageState extends State<ShushiInputPage> {
                 icon: Icon(Icons.location_on),
               ),
               value: _selectedKeibajo,
-              items: ['園田', '阪神', '東京', '京都', '中山', 'その他']
-                  .map((label) => DropdownMenuItem(
-                        value: label,
-                        child: Text(label),
-                      ))
-                  .toList(),
+              items: keibajoList.map((label) {
+                // 区切り線（---）の場合は、選択不可のヘッダーとして表示
+                if (label.startsWith('---')) {
+                  return DropdownMenuItem<String>(
+                    value: label,
+                    enabled: false, // 選択できないようにする
+                    child: Text(
+                      label,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  );
+                }
+                // 通常の競馬場名
+                return DropdownMenuItem<String>(
+                  value: label,
+                  child: Text(label),
+                );
+              }).toList(),
               onChanged: (value) {
                 setState(() {
                   _selectedKeibajo = value;
@@ -78,17 +124,25 @@ class _ShushiInputPageState extends State<ShushiInputPage> {
             const SizedBox(height: 16),
 
             // --- レース番号入力 ---
-            TextFormField(
+            DropdownButtonFormField<String>(
               decoration: const InputDecoration(
-                labelText: 'レース番号 (例: 11R)',
+                labelText: 'レース番号',
                 icon: Icon(Icons.looks_one),
               ),
+              value: _selectedRaceNumber,
+              items: List.generate(12, (index) {
+                final number = index + 1;
+                return DropdownMenuItem(
+                  value: '${number}R',
+                  child: Text('${number}R'),
+                );
+              }),
               onChanged: (value) {
-                _selectedRaceNumber = value;
+                setState(() {
+                  _selectedRaceNumber = value;
+                });
               },
             ),
-            const SizedBox(height: 16),
-
             // --- 馬券の種類 (ドロップダウン) ---
             DropdownButtonFormField<String>(
               decoration: const InputDecoration(
@@ -97,10 +151,10 @@ class _ShushiInputPageState extends State<ShushiInputPage> {
               ),
               value: _selectedBakenType,
               items: ['単勝', '複勝', '馬連', '馬単', '枠連', 'ワイド', '三連複', '三連単']
-                  .map((label) => DropdownMenuItem(
-                        value: label,
-                        child: Text(label),
-                      ))
+                  .map(
+                    (label) =>
+                        DropdownMenuItem(value: label, child: Text(label)),
+                  )
                   .toList(),
               onChanged: (value) {
                 setState(() {
@@ -123,13 +177,19 @@ class _ShushiInputPageState extends State<ShushiInputPage> {
             const SizedBox(height: 16),
             TextFormField(
               controller: _kakekinController,
-              decoration: const InputDecoration(labelText: '賭けた金額 (円)', prefixText: '¥ '),
+              decoration: const InputDecoration(
+                labelText: '賭けた金額 (円)',
+                prefixText: '¥ ',
+              ),
               keyboardType: TextInputType.number,
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _haraimodoshiController,
-              decoration: const InputDecoration(labelText: '払戻金 (円)', prefixText: '¥ '),
+              decoration: const InputDecoration(
+                labelText: '払戻金 (円)',
+                prefixText: '¥ ',
+              ),
               keyboardType: TextInputType.number,
             ),
             const SizedBox(height: 32),
@@ -141,13 +201,17 @@ class _ShushiInputPageState extends State<ShushiInputPage> {
                 label: const Text('保存する'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue[800],
-                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 40,
+                    vertical: 15,
+                  ),
                   textStyle: const TextStyle(fontSize: 16),
                 ),
                 onPressed: () {
                   // TODO: ここに保存処理と収支計算処理を書く
                   final kakekin = int.tryParse(_kakekinController.text) ?? 0;
-                  final haraimodoshi = int.tryParse(_haraimodoshiController.text) ?? 0;
+                  final haraimodoshi =
+                      int.tryParse(_haraimodoshiController.text) ?? 0;
                   final shushi = haraimodoshi - kakekin;
 
                   // 計算結果をダイアログで表示
